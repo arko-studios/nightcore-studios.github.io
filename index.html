@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nightcore Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        
+        :root {
+            /* Default: Pitch Black Theme */
+            --bg-main: #000000;
+            --bg-secondary: #0a0a0a;
+            --bg-panel: rgba(20, 20, 20, 0.8);
+            --border-color: rgba(255, 255, 255, 0.15);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #818cf8;
+            --accent-glow: rgba(129, 140, 248, 0.3);
+            --track-bg: #333333;
+            --hover-bg: rgba(255, 255, 255, 0.1);
+            
+            /* New Variables for requested fixes */
+            --shadow-inset: rgba(0,0,0,0.3); /* Dark mode shadow opacity */
+            --album-grad-start: #1e293b;     /* Slate 800 */
+            --album-grad-end: #000000;       /* Black */
+            --album-icon: #334155;           /* Icon color in dark mode */
+        }
+
+        [data-theme="light"] {
+            --bg-main: #f1f5f9;
+            --bg-secondary: #ffffff;
+            --bg-panel: rgba(255, 255, 255, 0.9);
+            --border-color: rgba(0, 0, 0, 0.1);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent: #4f46e5;
+            --accent-glow: rgba(79, 70, 229, 0.2);
+            --track-bg: #e2e8f0;
+            --hover-bg: rgba(0, 0, 0, 0.05);
+
+            /* Light Mode Overrides */
+            --shadow-inset: rgba(0,0,0,0.03); /* Very subtle shadow for light mode */
+            --album-grad-start: #ffffff;      /* White */
+            --album-grad-end: #cbd5e1;        /* Slate 300 */
+            --album-icon: #94a3b8;            /* Lighter icon for light bg */
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            transition: background-color 0.3s, color 0.3s;
+            user-select: none;
+        }
+
+        /* Unified styling for themed elements */
+        .theme-bg-main { background-color: var(--bg-main); }
+        .theme-bg-secondary { background-color: var(--bg-secondary); }
+        .theme-bg-panel { background: var(--bg-panel); backdrop-filter: blur(12px); border: 1px solid var(--border-color); }
+        .theme-text-main { color: var(--text-main); }
+        .theme-text-muted { color: var(--text-muted); }
+        .theme-border { border-color: var(--border-color); }
+        .theme-hover:hover { background-color: var(--hover-bg); }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-main); }
+        ::-webkit-scrollbar-thumb { background: var(--track-bg); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        .visualizer-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-height: 300px;
+            overflow: hidden;
+            border-radius: 1rem;
+            /* Use variable for shadow opacity */
+            box-shadow: inset 0 0 50px var(--shadow-inset);
+            transition: box-shadow 0.3s ease;
+        }
+
+        .album-card-bg {
+            background: linear-gradient(to bottom right, var(--album-grad-start), var(--album-grad-end));
+        }
+        .album-icon-color {
+            color: var(--album-icon);
+        }
+
+        /* --- Improved Volume & Speed Sliders --- */
+        /* Common Slider Reset */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: transparent;
+            height: 24px; /* Increased touch area */
+            cursor: pointer;
+        }
+        
+        /* The Track */
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: var(--track-bg);
+            border-radius: 3px;
+            transition: background 0.3s;
+        }
+        
+        /* The Thumb */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid var(--accent);
+            margin-top: -6px; /* Center on track */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            transition: transform 0.1s, background 0.3s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: var(--accent);
+        }
+
+        /* Volume Slider Specifics - Dynamic Fill handled in JS */
+        #volControl {
+            height: 8px;
+            border-radius: 4px;
+            /* Gradient background simulates the 'fill' bar */
+            background: linear-gradient(to right, var(--accent) 0%, var(--accent) 50%, var(--track-bg) 50%, var(--track-bg) 100%);
+        }
+        #volControl::-webkit-slider-runnable-track {
+            background: transparent; /* Hide default track so gradient shows */
+            height: 100%;
+        }
+        #volControl::-webkit-slider-thumb {
+            margin-top: -5px; /* Adjust for new height */
+            background: white;
+            border: none;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+        }
+
+        .song-item { transition: all 0.2s; }
+        .song-item.active {
+            background: var(--accent-glow);
+            border-left: 3px solid var(--accent);
+        }
+        .song-item:hover:not(.active) { background: var(--hover-bg); }
+
+        .neon-text {
+            text-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        .btn-active {
+            color: var(--accent);
+            position: relative;
+        }
+        .btn-active::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 4px;
+            background-color: var(--accent);
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body data-theme="dark" class="h-screen flex flex-col overflow-hidden transition-colors duration-300">
+
+    <!-- Header -->
+    <header class="h-16 theme-bg-panel border-b theme-border flex items-center justify-between px-6 z-20">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <i data-lucide="zap" class="text-white w-4 h-4"></i>
+            </div>
+            <h1 class="text-lg font-bold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent tracking-tight">Nightcore Studio</h1>
+        </div>
+        <div class="flex gap-3">
+            <!-- Theme Changer -->
+            <button onclick="toggleTheme()" id="themeBtn" class="flex items-center justify-center w-8 h-8 rounded-full theme-bg-secondary theme-border border text-slate-400 hover:text-indigo-400 transition shadow-sm" title="Toggle Theme">
+                <i data-lucide="moon" class="w-4 h-4"></i>
+            </button>
+
+            <button onclick="document.getElementById('folderInput').click()" class="flex items-center gap-2 px-4 py-1.5 theme-bg-secondary hover:bg-indigo-500/10 rounded-full text-xs font-medium transition border theme-border theme-text-muted hover:text-indigo-400 hover:border-indigo-500/50">
+                <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i> Add Folder
+            </button>
+            <button onclick="document.getElementById('fileInput').click()" class="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-full text-xs font-bold transition shadow-lg shadow-indigo-500/20 text-white">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Songs
+            </button>
+            <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden" onchange="handleFiles(this.files)">
+            <input type="file" id="fileInput" multiple accept="audio/*" class="hidden" onchange="handleFiles(this.files)">
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Sidebar Playlist -->
+        <aside class="w-80 theme-bg-secondary border-r theme-border flex flex-col z-10 flex-shrink-0 transition-colors duration-300">
+            <div class="p-4 border-b theme-border">
+                <div class="relative group">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 theme-text-muted group-focus-within:text-indigo-400 transition"></i>
+                    <input type="text" id="searchInput" placeholder="Search collection..." class="w-full theme-bg-main text-sm rounded-lg pl-9 pr-4 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-500 theme-text-main placeholder-slate-500 transition border theme-border focus:border-indigo-500/50">
+                </div>
+            </div>
+            <div id="playlist" class="flex-1 overflow-y-auto p-2 space-y-1 scroll-smooth">
+                <!-- Playlist items injected here -->
+                <div id="emptyState" class="h-full flex flex-col items-center justify-center theme-text-muted p-6 text-center">
+                    <div class="w-16 h-16 rounded-full theme-bg-main flex items-center justify-center mb-4 border theme-border">
+                        <i data-lucide="music" class="w-8 h-8 opacity-20"></i>
+                    </div>
+                    <p class="text-sm font-medium">Your playlist is empty</p>
+                    <p class="text-xs mt-1 opacity-60">Import songs to get started</p>
+                </div>
+            </div>
+            <div class="p-3 text-xs theme-text-muted border-t theme-border flex justify-between items-center theme-bg-secondary">
+                <span id="songCount">0 songs</span>
+                <button onclick="clearPlaylist()" class="hover:text-red-400 transition">Clear All</button>
+            </div>
+        </aside>
+
+        <!-- Main Player Area -->
+        <section class="flex-1 flex flex-col relative bg-gradient-to-b from-[var(--bg-secondary)] to-[var(--bg-main)] transition-colors duration-300">
+            
+            <!-- Visualizer Area (Expanded) -->
+            <div class="flex-1 flex flex-col p-6 relative overflow-hidden">
+                <div class="flex-1 w-full visualizer-container theme-bg-panel relative">
+                    <canvas id="visualizerCanvas" class="relative z-0"></canvas>
+                    
+                    <!-- Static Album Art Template (Updated for Light Mode) -->
+                    <div id="albumArtPlaceholder" class="absolute inset-0 flex items-center justify-center theme-bg-main z-10 hidden">
+                        <div class="flex flex-col items-center justify-center">
+                            <!-- Replaced hardcoded gradient with CSS class .album-card-bg -->
+                            <div class="w-64 h-64 album-card-bg rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.3)] flex items-center justify-center border theme-border relative group overflow-hidden transition-colors duration-300">
+                                <!-- Decorative blurred blob -->
+                                <div class="absolute w-full h-full bg-gradient-to-br from-indigo-600/20 to-purple-600/20 blur-xl"></div>
+                                <!-- Icon color handled by variable -->
+                                <i data-lucide="music-4" class="w-24 h-24 album-icon-color relative z-10 group-hover:scale-110 transition duration-500"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Toggle Button -->
+                    <button onclick="toggleVisualizer()" id="visToggleBtn" class="absolute top-4 right-4 p-2 theme-bg-secondary hover:bg-indigo-500/10 backdrop-blur-md border theme-border rounded-lg theme-text-muted hover:text-indigo-400 transition z-20 shadow-lg group" title="Toggle Visualizer">
+                        <i data-lucide="activity" class="w-5 h-5"></i>
+                    </button>
+                    
+                    <!-- Floating Info Overlay -->
+                    <div class="absolute bottom-0 left-0 w-full p-8 bg-gradient-to-t from-black/80 to-transparent flex items-end justify-between pointer-events-none z-20">
+                        <div class="transform translate-y-2 transition-transform duration-500" id="songInfoContainer">
+                            <h2 class="text-3xl font-bold text-white mb-2 drop-shadow-lg neon-text truncate max-w-3xl" id="nowPlayingTitle">Nightcore Studio</h2>
+                            <div class="flex items-center gap-3 text-sm">
+                                <span class="bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded text-xs font-mono border border-indigo-500/30" id="formatBadge">WAV</span>
+                                <span class="text-slate-300 font-mono" id="nowPlayingMeta">Ready to play</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls Bar -->
+            <div class="h-auto theme-bg-panel border-t theme-border px-8 py-6 flex flex-col gap-6 shadow-2xl z-20 transition-colors duration-300">
+                
+                <!-- Progress & Time -->
+                <div class="w-full flex items-center gap-4 text-xs font-mono theme-text-muted">
+                    <span id="currentTime" class="w-10 text-right">0:00</span>
+                    <div class="flex-1 relative h-6 flex items-center cursor-pointer group" id="progressBarArea">
+                        <!-- Background Track -->
+                        <div class="w-full h-1 bg-slate-500/30 rounded-full overflow-hidden">
+                            <div class="h-full bg-indigo-500 w-0 group-hover:bg-indigo-400 transition-colors" id="progressBar"></div>
+                        </div>
+                        <!-- Interactive Handle (visible on hover/drag) -->
+                        <div class="absolute h-3 w-3 bg-white rounded-full shadow-[0_0_10px_rgba(129,140,248,0.8)] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" id="progressHandle" style="left: 0%"></div>
+                    </div>
+                    <span id="totalTime" class="w-10">0:00</span>
+                </div>
+
+                <div class="flex items-center justify-between gap-6">
+                    
+                    <!-- Left: Playback Controls -->
+                    <div class="flex items-center justify-start gap-8 flex-1 min-w-0">
+                        <button onclick="toggleShuffle()" id="shuffleBtn" class="theme-text-muted hover:text-indigo-400 transition" title="Shuffle">
+                            <i data-lucide="shuffle" class="w-4 h-4"></i>
+                        </button>
+                        
+                        <div class="flex items-center gap-5">
+                            <button onclick="prevSong()" class="theme-text-muted hover:text-indigo-400 transition hover:scale-110 active:scale-95"><i data-lucide="skip-back" class="w-6 h-6"></i></button>
+                            <button onclick="togglePlay()" id="playBtn" class="w-14 h-14 bg-indigo-500 text-white rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:shadow-[0_0_25px_rgba(99,102,241,0.5)] hover:scale-105 active:scale-95 transition duration-200 hover:bg-indigo-400">
+                                <i data-lucide="play" class="w-6 h-6 fill-current ml-1"></i>
+                            </button>
+                            <button onclick="nextSong()" class="theme-text-muted hover:text-indigo-400 transition hover:scale-110 active:scale-95"><i data-lucide="skip-forward" class="w-6 h-6"></i></button>
+                        </div>
+
+                        <button onclick="toggleRepeat()" id="repeatBtn" class="theme-text-muted hover:text-indigo-400 transition" title="Repeat">
+                            <i data-lucide="repeat" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <!-- Center: Speed Control -->
+                    <div class="flex flex-col items-center justify-center flex-1">
+                        <div class="flex flex-col w-full max-w-[200px] gap-1">
+                            <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest theme-text-muted opacity-70">
+                                <span>Normal</span>
+                                <span class="text-indigo-500">Nightcore</span>
+                                <span>Hyper</span>
+                            </div>
+                            <input type="range" id="speedControl" min="1.0" max="1.5" step="0.01" value="1.25" class="w-full">
+                            <div class="text-center">
+                                <span id="speedValue" class="text-xs font-mono text-indigo-500 font-bold bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">1.25x</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Volume & Download (IMPROVED) -->
+                    <div class="flex items-center justify-end gap-6 flex-1 min-w-0">
+                        <div class="flex items-center gap-3 group theme-bg-secondary p-2 rounded-lg border theme-border shadow-inner min-w-[140px]">
+                            <button onclick="toggleMute()" class="theme-text-muted hover:text-indigo-400 transition flex-shrink-0">
+                                <i data-lucide="volume-2" id="volIcon" class="w-5 h-5"></i>
+                            </button>
+                            <!-- Improved Volume Slider -->
+                            <input type="range" id="volControl" min="0" max="1" step="0.01" value="0.8" class="w-24 flex-1">
+                        </div>
+                        <button onclick="downloadCurrent()" id="downloadBtn" class="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white rounded-lg text-sm font-semibold shadow-lg shadow-indigo-900/50 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none active:translate-y-0.5 whitespace-nowrap">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                            <span id="downloadText">Export WAV</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // --- Lucide Icons Init ---
+        lucide.createIcons();
+
+        // --- State Management ---
+        let playlist = [];
+        let originalPlaylistOrder = [];
+        let currentIndex = -1;
+        
+        // Audio Context vars
+        let audioCtx = null;
+        let sourceNode = null;
+        let gainNode = null;
+        let analyser = null;
+        let audioBuffer = null;
+        
+        // Playback State
+        let isPlaying = false;
+        let isVisualizerOn = true;
+        let startTime = 0;
+        let pausedAt = 0;
+        let playbackRate = 1.25;
+        
+        // Modes
+        let isShuffle = false;
+        let repeatMode = 0;
+        let currentTheme = 'dark';
+
+        // --- UI Elements ---
+        const playlistEl = document.getElementById('playlist');
+        const songCountEl = document.getElementById('songCount');
+        const emptyStateEl = document.getElementById('emptyState');
+        const speedControl = document.getElementById('speedControl');
+        const speedValue = document.getElementById('speedValue');
+        const volControl = document.getElementById('volControl');
+        const progressBarArea = document.getElementById('progressBarArea');
+        const progressBar = document.getElementById('progressBar');
+        const progressHandle = document.getElementById('progressHandle');
+        const currentTimeEl = document.getElementById('currentTime');
+        const totalTimeEl = document.getElementById('totalTime');
+        const playBtn = document.getElementById('playBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const downloadText = document.getElementById('downloadText');
+        const nowPlayingTitle = document.getElementById('nowPlayingTitle');
+        const nowPlayingMeta = document.getElementById('nowPlayingMeta');
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        const repeatBtn = document.getElementById('repeatBtn');
+        const themeBtn = document.getElementById('themeBtn');
+        const canvas = document.getElementById('visualizerCanvas');
+        const ctx = canvas.getContext('2d');
+        const albumArtPlaceholder = document.getElementById('albumArtPlaceholder');
+        const visToggleBtn = document.getElementById('visToggleBtn');
+
+        // --- Theme Toggle ---
+        function toggleTheme() {
+            const body = document.body;
+            if (currentTheme === 'dark') {
+                currentTheme = 'light';
+                body.setAttribute('data-theme', 'light');
+                themeBtn.innerHTML = '<i data-lucide="sun" class="w-4 h-4 text-orange-500"></i>';
+            } else {
+                currentTheme = 'dark';
+                body.setAttribute('data-theme', 'dark');
+                themeBtn.innerHTML = '<i data-lucide="moon" class="w-4 h-4 text-indigo-400"></i>';
+            }
+            lucide.createIcons();
+            updateVolumeSliderFill(); // Re-calc colors for slider
+        }
+
+        // --- Volume Slider Fill Logic ---
+        function updateVolumeSliderFill() {
+            const val = volControl.value;
+            const percentage = (val - volControl.min) / (volControl.max - volControl.min) * 100;
+            
+            // Dynamic colors based on theme
+            const accentColor = currentTheme === 'dark' ? '#818cf8' : '#4f46e5';
+            const trackColor = currentTheme === 'dark' ? '#333333' : '#e2e8f0';
+            
+            volControl.style.background = `linear-gradient(to right, ${accentColor} 0%, ${accentColor} ${percentage}%, ${trackColor} ${percentage}%, ${trackColor} 100%)`;
+        }
+
+        volControl.addEventListener('input', (e) => {
+            if (gainNode) gainNode.gain.value = e.target.value;
+            updateVolumeSliderFill();
+            
+            // Update icon based on level
+            const icon = document.getElementById('volIcon');
+            if(e.target.value == 0) icon.setAttribute('data-lucide', 'volume-x');
+            else if(e.target.value < 0.5) icon.setAttribute('data-lucide', 'volume-1');
+            else icon.setAttribute('data-lucide', 'volume-2');
+            lucide.createIcons();
+        });
+        
+        // Init volume slider look
+        updateVolumeSliderFill();
+
+
+        // --- Init Audio ---
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            setupMediaKeys();
+        }
+
+        // --- Keyboard & Media Key Support ---
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+                togglePlay();
+            }
+        });
+
+        function setupMediaKeys() {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.setActionHandler('play', togglePlay);
+                navigator.mediaSession.setActionHandler('pause', togglePlay);
+                navigator.mediaSession.setActionHandler('previoustrack', prevSong);
+                navigator.mediaSession.setActionHandler('nexttrack', () => nextSong(false));
+            }
+        }
+
+        function updateMediaSessionMetadata(title) {
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: title,
+                    artist: 'Nightcore Studio',
+                    album: 'Nightcore Mix',
+                    artwork: [
+                        { src: 'https://ui-avatars.com/api/?name=NC&background=4f46e5&color=fff&size=512', sizes: '512x512', type: 'image/png' }
+                    ]
+                });
+            }
+        }
+
+        // --- Drag & Drop Support ---
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => {
+            e.preventDefault();
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleFiles(e.dataTransfer.files);
+            }
+        });
+
+        // --- File Handling ---
+        function handleFiles(files) {
+            const newSongs = Array.from(files).filter(f => f.type.startsWith('audio/'));
+            if (newSongs.length === 0) return;
+
+            playlist = [...playlist, ...newSongs];
+            originalPlaylistOrder = [...playlist]; 
+            
+            updatePlaylistUI();
+            
+            if (currentIndex === -1) {
+                loadSong(0);
+            }
+        }
+
+        function clearPlaylist() {
+            if(sourceNode) try{sourceNode.stop();}catch(e){}
+            playlist = [];
+            currentIndex = -1;
+            isPlaying = false;
+            audioBuffer = null;
+            updatePlaylistUI();
+            updatePlayButton();
+            nowPlayingTitle.textContent = "Nightcore Studio";
+            nowPlayingMeta.textContent = "Ready to play";
+            progressBar.style.width = '0%';
+            currentTimeEl.textContent = "0:00";
+            totalTimeEl.textContent = "0:00";
+        }
+
+        // --- Playlist UI ---
+        function updatePlaylistUI() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            playlistEl.innerHTML = '';
+            
+            if (playlist.length === 0) {
+                emptyStateEl.style.display = 'flex';
+                songCountEl.textContent = '0 songs';
+                return;
+            } else {
+                emptyStateEl.style.display = 'none';
+            }
+
+            playlist.forEach((file, index) => {
+                if (!file.name.toLowerCase().includes(search)) return;
+
+                const div = document.createElement('div');
+                div.className = `song-item p-3 rounded-lg cursor-pointer flex items-center justify-between group ${index === currentIndex ? 'active' : 'theme-text-muted'}`;
+                div.onclick = () => loadSong(index);
+                
+                const name = file.name.replace(/\.[^/.]+$/, "");
+                
+                // Conditional styling for text inside the item
+                const textColorClass = index === currentIndex ? 'text-indigo-500 font-bold' : 'theme-text-main';
+                const numColorClass = index === currentIndex ? 'text-indigo-500' : 'theme-text-muted';
+
+                div.innerHTML = `
+                    <div class="flex items-center gap-3 overflow-hidden w-full">
+                        <div class="w-8 h-8 flex-shrink-0 rounded theme-bg-main flex items-center justify-center ${numColorClass}">
+                            ${index === currentIndex && isPlaying 
+                                ? '<i data-lucide="bar-chart-2" class="w-4 h-4 animate-pulse"></i>' 
+                                : `<span class="text-xs font-mono">${index + 1}</span>`}
+                        </div>
+                        <div class="flex flex-col overflow-hidden min-w-0">
+                            <span class="text-sm truncate ${textColorClass}">${name}</span>
+                            <span class="text-[10px] theme-text-muted truncate">${(file.size / 1024 / 1024).toFixed(1)} MB</span>
+                        </div>
+                    </div>
+                `;
+                playlistEl.appendChild(div);
+            });
+            
+            songCountEl.textContent = `${playlist.length} songs`;
+            lucide.createIcons();
+        }
+        
+        document.getElementById('searchInput').addEventListener('input', updatePlaylistUI);
+
+        // --- Mode Toggles ---
+        function toggleShuffle() {
+            isShuffle = !isShuffle;
+            shuffleBtn.classList.toggle('btn-active', isShuffle);
+            // Adjust color helper
+            if(isShuffle) shuffleBtn.classList.add('text-indigo-500');
+            else shuffleBtn.classList.remove('text-indigo-500');
+        }
+
+        function toggleRepeat() {
+            repeatMode = (repeatMode + 1) % 3;
+            
+            repeatBtn.classList.remove('btn-active', 'text-indigo-500');
+            repeatBtn.innerHTML = '<i data-lucide="repeat" class="w-4 h-4"></i>';
+
+            if (repeatMode === 1) {
+                repeatBtn.classList.add('btn-active', 'text-indigo-500');
+            } else if (repeatMode === 2) {
+                repeatBtn.classList.add('btn-active', 'text-indigo-500');
+                repeatBtn.innerHTML = '<i data-lucide="repeat-1" class="w-4 h-4"></i>';
+            }
+            lucide.createIcons();
+        }
+        
+        function toggleVisualizer() {
+            isVisualizerOn = !isVisualizerOn;
+            
+            if (isVisualizerOn) {
+                canvas.style.opacity = '1';
+                albumArtPlaceholder.classList.add('hidden');
+                visToggleBtn.innerHTML = '<i data-lucide="activity" class="w-5 h-5"></i>';
+                visToggleBtn.classList.remove('text-indigo-500');
+                if (isPlaying) drawVisualizer();
+            } else {
+                canvas.style.opacity = '0';
+                albumArtPlaceholder.classList.remove('hidden');
+                visToggleBtn.innerHTML = '<i data-lucide="image" class="w-5 h-5"></i>';
+                visToggleBtn.classList.add('text-indigo-500');
+            }
+            lucide.createIcons();
+        }
+
+        // --- Audio Engine Core ---
+        async function loadSong(index) {
+            initAudio();
+            if (index < 0 || index >= playlist.length) return;
+
+            if (sourceNode) {
+                try { sourceNode.stop(); } catch(e){}
+                sourceNode.disconnect();
+            }
+
+            currentIndex = index;
+            const file = playlist[index];
+            const reader = new FileReader();
+
+            nowPlayingTitle.textContent = "Loading...";
+            downloadBtn.disabled = true;
+            playBtn.disabled = true;
+
+            reader.onload = async (e) => {
+                const arrayBuffer = e.target.result;
+                try {
+                    audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    
+                    updatePlaylistUI();
+                    playAudio(0); 
+                    
+                    downloadBtn.disabled = false;
+                    playBtn.disabled = false;
+                    
+                    const name = file.name.replace(/\.[^/.]+$/, "");
+                    nowPlayingTitle.textContent = name;
+                    nowPlayingMeta.textContent = `Original: ${(audioBuffer.duration / 60).toFixed(2)}m • Nightcore Speed: ${playbackRate}x`;
+                    
+                    updateMediaSessionMetadata(name);
+
+                } catch (err) {
+                    console.error("Decode error", err);
+                    nowPlayingTitle.textContent = "Error loading file";
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function playAudio(offset) {
+            if (!audioBuffer) return;
+            
+            if (sourceNode) {
+                try { sourceNode.stop(); } catch(e){}
+                sourceNode.disconnect();
+            }
+
+            sourceNode = audioCtx.createBufferSource();
+            sourceNode.buffer = audioBuffer;
+            sourceNode.playbackRate.value = playbackRate;
+
+            if(!analyser) {
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 512; 
+            }
+            if(!gainNode) {
+                gainNode = audioCtx.createGain();
+                gainNode.gain.value = volControl.value;
+                gainNode.connect(audioCtx.destination);
+                analyser.connect(gainNode);
+            }
+
+            sourceNode.connect(analyser);
+
+            startTime = audioCtx.currentTime - (offset / playbackRate);
+            pausedAt = offset;
+
+            sourceNode.start(0, offset);
+            isPlaying = true;
+            
+            updatePlayButton();
+            updatePlaylistUI();
+            if (isVisualizerOn) drawVisualizer();
+
+            sourceNode.onended = () => {
+                const currentBufferTime = (audioCtx.currentTime - startTime) * playbackRate;
+                if (Math.abs(currentBufferTime - audioBuffer.duration) < 0.5 || currentBufferTime > audioBuffer.duration) {
+                    handleSongEnd();
+                }
+            };
+        }
+
+        function handleSongEnd() {
+            if (repeatMode === 2) {
+                playAudio(0);
+            } else {
+                if (currentIndex < playlist.length - 1 || repeatMode === 1 || isShuffle) {
+                    nextSong(true); 
+                } else {
+                    isPlaying = false;
+                    updatePlayButton();
+                    pausedAt = 0; 
+                }
+            }
+        }
+
+        function togglePlay() {
+            if (!audioBuffer) {
+                if(playlist.length > 0) loadSong(0);
+                return;
+            }
+            
+            if (isPlaying) {
+                sourceNode.stop();
+                pausedAt = (audioCtx.currentTime - startTime) * playbackRate;
+                isPlaying = false;
+            } else {
+                playAudio(pausedAt);
+            }
+            updatePlayButton();
+        }
+
+        function prevSong() {
+            const currentBufferTime = (audioCtx.currentTime - startTime) * playbackRate;
+            if (currentBufferTime > 3) {
+                playAudio(0);
+                return;
+            }
+
+            if (currentIndex > 0) {
+                loadSong(currentIndex - 1);
+            } else {
+                if (repeatMode === 1) loadSong(playlist.length - 1);
+            }
+        }
+
+        function nextSong(auto = false) {
+            if (isShuffle) {
+                let nextIndex = Math.floor(Math.random() * playlist.length);
+                if (playlist.length > 1 && nextIndex === currentIndex) {
+                    nextIndex = (nextIndex + 1) % playlist.length;
+                }
+                loadSong(nextIndex);
+            } else {
+                if (currentIndex < playlist.length - 1) {
+                    loadSong(currentIndex + 1);
+                } else if (repeatMode === 1) {
+                    loadSong(0);
+                } else if (!auto) {
+                     loadSong(0);
+                }
+            }
+        }
+
+        function updatePlayButton() {
+            playBtn.innerHTML = isPlaying 
+                ? `<i data-lucide="pause" class="w-6 h-6 fill-current"></i>`
+                : `<i data-lucide="play" class="w-6 h-6 fill-current ml-1"></i>`;
+            lucide.createIcons();
+        }
+
+        progressBarArea.addEventListener('click', (e) => {
+            if (!audioBuffer) return;
+            
+            const rect = progressBarArea.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const width = rect.width;
+            const percent = Math.max(0, Math.min(1, clickX / width));
+            
+            const seekToBufferTime = audioBuffer.duration * percent;
+            
+            if (isPlaying) {
+                playAudio(seekToBufferTime);
+            } else {
+                pausedAt = seekToBufferTime;
+                const effectiveCurrent = seekToBufferTime / playbackRate;
+                progressBar.style.width = `${percent * 100}%`;
+                progressHandle.style.left = `${percent * 100}%`;
+                currentTimeEl.textContent = formatTime(effectiveCurrent);
+            }
+        });
+
+        function updateProgress() {
+            if (isPlaying && audioBuffer) {
+                const elapsed = audioCtx.currentTime - startTime;
+                const currentBufferTime = elapsed * playbackRate;
+                const percent = Math.min(100, (currentBufferTime / audioBuffer.duration) * 100);
+                
+                progressBar.style.width = `${percent}%`;
+                progressHandle.style.left = `${percent}%`;
+                
+                const effectiveDuration = audioBuffer.duration / playbackRate;
+                const effectiveCurrent = currentBufferTime / playbackRate;
+
+                currentTimeEl.textContent = formatTime(effectiveCurrent);
+                totalTimeEl.textContent = formatTime(effectiveDuration);
+            }
+            requestAnimationFrame(updateProgress);
+        }
+        requestAnimationFrame(updateProgress);
+
+        function formatTime(seconds) {
+            if(isNaN(seconds) || seconds < 0) return "0:00";
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        speedControl.addEventListener('input', (e) => {
+            const newRate = parseFloat(e.target.value);
+            
+            if (isPlaying && audioBuffer) {
+                const currentBufferTime = (audioCtx.currentTime - startTime) * playbackRate;
+                playbackRate = newRate;
+                if (sourceNode) sourceNode.playbackRate.value = playbackRate;
+                startTime = audioCtx.currentTime - (currentBufferTime / playbackRate);
+            } else {
+                playbackRate = newRate;
+            }
+
+            speedValue.textContent = playbackRate.toFixed(2) + 'x';
+            if(audioBuffer) {
+                 const effectiveDuration = audioBuffer.duration / playbackRate;
+                 totalTimeEl.textContent = formatTime(effectiveDuration);
+            }
+        });
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.offsetWidth;
+            canvas.height = container.offsetHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        setTimeout(resizeCanvas, 100);
+
+        function drawVisualizer() {
+            if (!isPlaying || !isVisualizerOn) return;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const barCount = 100; 
+            const step = Math.floor(bufferLength / barCount);
+            const barWidth = (canvas.width / barCount);
+            
+            for(let i = 0; i < barCount; i++) {
+                const value = dataArray[i * step];
+                const barHeight = (value / 255) * canvas.height;
+                const x = i * barWidth;
+                const y = canvas.height - barHeight;
+
+                const gradient = ctx.createLinearGradient(x, canvas.height, x, y);
+                if (currentTheme === 'dark') {
+                    gradient.addColorStop(0, '#4f46e5'); 
+                    gradient.addColorStop(0.5, '#818cf8');
+                    gradient.addColorStop(1, '#22d3ee');
+                } else {
+                     // Light mode specific gradient (more vibrant)
+                    gradient.addColorStop(0, '#4338ca'); 
+                    gradient.addColorStop(0.5, '#6366f1');
+                    gradient.addColorStop(1, '#06b6d4');
+                }
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.roundRect(x, y, barWidth - 2, barHeight, [4, 4, 0, 0]);
+                ctx.fill();
+            }
+            
+            if(isPlaying && isVisualizerOn) requestAnimationFrame(drawVisualizer);
+        }
+
+        async function downloadCurrent() {
+            if (!audioBuffer) return;
+
+            const originalText = downloadText.textContent;
+            downloadBtn.disabled = true;
+            downloadText.textContent = "Processing...";
+
+            const newDuration = audioBuffer.duration / playbackRate;
+            const offlineCtx = new OfflineAudioContext(
+                audioBuffer.numberOfChannels,
+                newDuration * audioBuffer.sampleRate,
+                audioBuffer.sampleRate
+            );
+
+            const offlineSource = offlineCtx.createBufferSource();
+            offlineSource.buffer = audioBuffer;
+            offlineSource.playbackRate.value = playbackRate;
+            
+            offlineSource.connect(offlineCtx.destination);
+            offlineSource.start(0);
+
+            try {
+                const renderedBuffer = await offlineCtx.startRendering();
+                const wavBlob = bufferToWave(renderedBuffer, renderedBuffer.length);
+                const url = URL.createObjectURL(wavBlob);
+                
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                const originalName = playlist[currentIndex].name.replace(/\.[^/.]+$/, "");
+                a.download = `${originalName}_Nightcore_${playbackRate}x.wav`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                downloadText.textContent = "Downloaded!";
+                setTimeout(() => {
+                    downloadText.textContent = originalText;
+                    downloadBtn.disabled = false;
+                }, 2000);
+
+            } catch (e) {
+                console.error("Export failed", e);
+                downloadText.textContent = "Error";
+                downloadBtn.disabled = false;
+            }
+        }
+
+        function bufferToWave(abuffer, len) {
+            let numOfChan = abuffer.numberOfChannels,
+                length = len * numOfChan * 2 + 44,
+                buffer = new ArrayBuffer(length),
+                view = new DataView(buffer),
+                channels = [], i, sample,
+                offset = 0,
+                pos = 0;
+
+            setUint32(0x46464952); 
+            setUint32(length - 8); 
+            setUint32(0x45564157); 
+            setUint32(0x20746d66); 
+            setUint32(16); 
+            setUint16(1); 
+            setUint16(numOfChan);
+            setUint32(abuffer.sampleRate);
+            setUint32(abuffer.sampleRate * 2 * numOfChan); 
+            setUint16(numOfChan * 2); 
+            setUint16(16); 
+            setUint32(0x61746164); 
+            setUint32(length - pos - 4); 
+
+            for(i = 0; i < abuffer.numberOfChannels; i++)
+                channels.push(abuffer.getChannelData(i));
+
+            while(pos < length) {
+                for(i = 0; i < numOfChan; i++) { 
+                    sample = Math.max(-1, Math.min(1, channels[i][offset])); 
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0; 
+                    view.setInt16(pos, sample, true); 
+                    pos += 2;
+                }
+                offset++; 
+            }
+            return new Blob([buffer], {type: "audio/wav"});
+
+            function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+            function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+        }
+
+        function toggleMute() {
+            const vol = document.getElementById('volControl');
+            if (gainNode) {
+                if(gainNode.gain.value > 0) {
+                    vol.dataset.prev = gainNode.gain.value;
+                    gainNode.gain.value = 0;
+                    vol.value = 0;
+                } else {
+                    gainNode.gain.value = vol.dataset.prev || 0.8;
+                    vol.value = gainNode.gain.value;
+                }
+                updateVolumeSliderFill();
+                
+                const icon = document.getElementById('volIcon');
+                if(vol.value == 0) icon.setAttribute('data-lucide', 'volume-x');
+                else icon.setAttribute('data-lucide', 'volume-2');
+                lucide.createIcons();
+            }
+        }
+    </script>
+</body>
+</html>
