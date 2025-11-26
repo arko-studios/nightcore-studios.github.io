@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Nightcore Studio</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -19,7 +19,7 @@
             --text-muted: #94a3b8;
             --accent: #818cf8;
             --accent-glow: rgba(129, 140, 248, 0.3);
-            --track-bg: rgba(255, 255, 255, 0.2); /* Increased visibility */
+            --track-bg: rgba(255, 255, 255, 0.2);
             --hover-bg: rgba(255, 255, 255, 0.1);
             
             /* Variables for visual fixes */
@@ -55,6 +55,9 @@
             user-select: none;
             overscroll-behavior-y: none;
             -webkit-tap-highlight-color: transparent;
+            /* CRITICAL FIX for Mobile Browsers: Use dynamic viewport height */
+            height: 100vh;
+            height: 100dvh;
         }
 
         .theme-bg-main { background-color: var(--bg-main); }
@@ -74,11 +77,19 @@
             position: relative;
             width: 100%;
             height: 100%;
-            min-height: 200px; /* Reduced min-height for mobile */
+            /* Lower min-height on mobile to ensure controls fit */
+            min-height: 120px; 
             overflow: hidden;
             border-radius: 1rem;
             box-shadow: inset 0 0 50px var(--shadow-inset);
             transition: box-shadow 0.3s ease;
+        }
+
+        /* Larger min-height for desktop */
+        @media (min-width: 768px) {
+            .visualizer-container {
+                min-height: 250px;
+            }
         }
 
         .album-card-bg {
@@ -92,7 +103,7 @@
             background: transparent;
             height: 24px;
             cursor: pointer;
-            touch-action: none; /* Prevents scroll while sliding */
+            touch-action: none; 
         }
         
         input[type="range"]::-webkit-slider-runnable-track {
@@ -121,11 +132,10 @@
             background: var(--accent);
         }
 
-        /* Speed & Volume Slider Fill Styles */
+        /* Slider Fill Styles */
         #volControl, #speedControl {
             height: 8px;
             border-radius: 4px;
-            /* Default background, JS will override for fill effect */
             background: linear-gradient(to right, var(--accent) 0%, var(--accent) 0%, var(--track-bg) 0%, var(--track-bg) 100%);
         }
         #volControl::-webkit-slider-runnable-track, #speedControl::-webkit-slider-runnable-track { 
@@ -164,7 +174,6 @@
             border-radius: 50%;
         }
 
-        /* Reverb Button Glow Effect */
         .reverb-active {
             background-color: var(--accent-glow);
             color: var(--accent);
@@ -172,11 +181,13 @@
             box-shadow: 0 0 15px var(--accent-glow);
         }
 
-        /* Responsive Safe Area */
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+        /* Safe Area Padding for iPhone/Modern Android */
+        .pb-safe { 
+            padding-bottom: env(safe-area-inset-bottom, 20px); 
+        }
     </style>
 </head>
-<body data-theme="dark" class="h-screen flex flex-col overflow-hidden transition-colors duration-300 fixed inset-0">
+<body data-theme="dark" class="flex flex-col overflow-hidden transition-colors duration-300 fixed inset-0">
 
     <!-- Mobile Sidebar Overlay -->
     <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/80 z-40 hidden md:hidden backdrop-blur-sm transition-opacity"></div>
@@ -192,7 +203,6 @@
             <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
                 <i data-lucide="zap" class="text-white w-4 h-4"></i>
             </div>
-            <!-- REMOVED "hidden xs:block" to ensure title is always visible -->
             <h1 class="text-base md:text-lg font-bold bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent tracking-tight truncate">Nightcore Studio</h1>
         </div>
         <div class="flex gap-2">
@@ -201,11 +211,12 @@
                 <i data-lucide="moon" class="w-4 h-4"></i>
             </button>
 
-            <!-- Added Add Folder Button Back -->
+            <!-- Add Folder Button -->
             <button onclick="document.getElementById('folderInput').click()" class="hidden sm:flex items-center gap-2 px-4 py-1.5 theme-bg-secondary hover:bg-indigo-500/10 rounded-full text-xs font-medium transition border theme-border theme-text-muted hover:text-indigo-400 hover:border-indigo-500/50">
                 <i data-lucide="folder-plus" class="w-3.5 h-3.5"></i> Add Folder
             </button>
 
+            <!-- Add Songs Button -->
             <button onclick="document.getElementById('fileInput').click()" class="flex items-center gap-2 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-full text-xs font-bold transition shadow-lg shadow-indigo-500/20 text-white active:scale-95">
                 <i data-lucide="plus" class="w-3.5 h-3.5"></i> <span class="hidden sm:inline">Add Songs</span>
                 <span class="sm:hidden">Add</span>
@@ -257,6 +268,7 @@
         <section class="flex-1 flex flex-col relative bg-gradient-to-b from-[var(--bg-secondary)] to-[var(--bg-main)] transition-colors duration-300 w-full min-w-0">
             
             <!-- Visualizer Area -->
+            <!-- Use min-h-0 to allow shrinking, but maintain a small min-height via class -->
             <div class="flex-1 flex flex-col p-3 md:p-6 relative overflow-hidden min-h-0">
                 <div class="flex-1 w-full visualizer-container theme-bg-panel relative">
                     <canvas id="visualizerCanvas" class="relative z-0"></canvas>
@@ -290,7 +302,7 @@
             </div>
 
             <!-- Controls Bar -->
-            <div class="theme-bg-panel border-t theme-border shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-30 transition-colors duration-300 shrink-0 pb-safe">
+            <div class="theme-bg-panel border-t theme-border shadow-[0_-10px_40px_rgba(0,0,0,0.5)] z-50 transition-colors duration-300 shrink-0 pb-safe">
                 
                 <!-- 1. Progress Bar -->
                 <div class="w-full px-4 pt-3 md:px-8 md:pt-6 flex items-center gap-3 text-xs font-mono theme-text-muted mb-2">
@@ -327,7 +339,7 @@
                         </button>
                     </div>
 
-                    <!-- Divider (Hidden on small, visible on large) -->
+                    <!-- Divider -->
                     <div class="hidden lg:block h-10 w-px bg-slate-700/50 order-2"></div>
 
                     <!-- Group 2: Speed (Order 2) -->
@@ -336,10 +348,8 @@
                             <span>Speed</span>
                             <span class="text-indigo-500 font-mono" id="speedLabel">1.25x</span>
                         </div>
-                        <!-- Slider with dynamic fill -->
                         <input type="range" id="speedControl" min="0.6" max="1.5" step="0.01" value="1.25" class="w-full">
                         
-                        <!-- Fixed Labels -->
                         <div class="relative w-full h-3 text-[8px] theme-text-muted font-medium mt-1 select-none">
                             <span class="absolute left-0">0.6x</span>
                             <span class="absolute left-[44%] -translate-x-1/2 text-slate-500">Normal</span>
@@ -347,7 +357,7 @@
                         </div>
                     </div>
 
-                    <!-- Divider (Hidden on small, visible on large) -->
+                    <!-- Divider -->
                     <div class="hidden lg:block h-10 w-px bg-slate-700/50 order-4"></div>
 
                     <!-- Group 3: Tools (Order 3) -->
@@ -464,7 +474,6 @@
             updateSliderFill(speedControl);
         }
 
-        // Generic Slider Fill (Speed & Volume)
         function updateSliderFill(el) {
             const val = parseFloat(el.value);
             const percentage = (val - el.min) / (el.max - el.min) * 100;
@@ -484,7 +493,6 @@
             lucide.createIcons();
         });
 
-        // Initialize Slider Fills
         updateSliderFill(volControl);
         updateSliderFill(speedControl);
 
