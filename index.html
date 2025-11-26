@@ -77,7 +77,6 @@
             position: relative;
             width: 100%;
             height: 100%;
-            /* Lower min-height on mobile to ensure controls fit */
             min-height: 120px; 
             overflow: hidden;
             border-radius: 1rem;
@@ -179,6 +178,15 @@
             color: var(--accent);
             border-color: var(--accent);
             box-shadow: 0 0 15px var(--accent-glow);
+        }
+        
+        /* FIX: Apply hover styles ONLY on devices that actually support hover (mouse) 
+           This prevents the button from looking "stuck" on mobile after tapping */
+        @media (hover: hover) {
+            .hover-btn-effect:hover {
+                border-color: var(--accent);
+                color: var(--accent);
+            }
         }
 
         /* Safe Area Padding for iPhone/Modern Android */
@@ -364,7 +372,7 @@
                     <div class="flex items-center gap-3 w-full sm:w-auto order-3 justify-between sm:justify-end flex-grow lg:flex-grow-0">
                         
                         <!-- Reverb Toggle -->
-                        <button onclick="toggleReverb()" id="reverbBtn" class="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-600 bg-[var(--bg-secondary)] lg:bg-transparent text-xs font-semibold theme-text-muted hover:border-indigo-500 hover:text-indigo-400 transition duration-300 h-10 min-w-[90px]">
+                        <button onclick="toggleReverb()" id="reverbBtn" class="hover-btn-effect flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-slate-600 bg-[var(--bg-secondary)] lg:bg-transparent text-xs font-semibold theme-text-muted transition duration-300 h-10 min-w-[90px]">
                             <i data-lucide="waves" class="w-4 h-4"></i>
                             <span>Reverb</span>
                         </button>
@@ -787,6 +795,12 @@
 
             sourceNode.start(0, offset);
             isPlaying = true;
+            
+            // FIX for Media Keys: Update playback state explicitly
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = 'playing';
+            }
+
             updatePlayButton();
             updatePlaylistUI();
             if (isVisualizerOn) drawVisualizer();
@@ -822,6 +836,11 @@
                 sourceNode.stop();
                 pausedAt = (audioCtx.currentTime - startTime) * playbackRate;
                 isPlaying = false;
+                
+                // FIX for Media Keys: Update playback state explicitly
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.playbackState = 'paused';
+                }
             } else {
                 playAudio(pausedAt);
             }
